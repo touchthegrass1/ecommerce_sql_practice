@@ -104,7 +104,7 @@ QUERY PLAN
  Execution Time: 146908.046 ms
 
 
- AFTER(Using materialized view)
+ AFTER (Using materialized view)
  QUERY PLAN
  --------------------------------------------------------------------------------------------------------------------------------------------------------------
   Index Scan using item_pkey on shop_item  (cost=1150.10..1158.11 rows=1 width=101) (actual time=1.132..1.135 rows=1 loops=1)

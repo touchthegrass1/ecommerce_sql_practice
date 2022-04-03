@@ -16,10 +16,3 @@ WHERE shop_item.id = (
     WHERE shop_company.id = 1
     LIMIT 1
 )
-
--- Company total money from sales on ecommerce
-SELECT
-    SUM(shop_item.price * shop_orderitem.quantity)
-FROM shop_item
-    INNER JOIN shop_orderitem ON shop_item.id = shop_orderitem.item_id
-WHERE shop_item.company_id = 1;
