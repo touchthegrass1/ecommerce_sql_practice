@@ -1,0 +1,43 @@
+QUERY:
+
+SELECT "shop_item"."id", "shop_item"."title", "shop_item"."description", "shop_item"."price", "shop_item"."image_href", "shop_item"."slug", "shop_item"."subcategory_id", "shop_item"."company_id"
+FROM "shop_item"
+    INNER JOIN "shop_subcategory" ON "shop_item"."subcategory_id" = "shop_subcategory"."id"
+WHERE "shop_subcategory"."slug" = '0eee36585928ed4c23f0e87'
+ORDER BY "shop_item"."price" ASC, "shop_item"."title" ASC;
+
+BEFORE:
+                                                                          QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=13183.44..13193.44 rows=4000 width=101) (actual time=1484.948..1485.520 rows=4050 loops=1)
+   Sort Key: shop_item.price, shop_item.title
+   Sort Method: quicksort  Memory: 666kB
+   ->  Nested Loop  (cost=51.74..12944.12 rows=4000 width=101) (actual time=5.522..1459.098 rows=4050 loops=1)
+         ->  Index Scan using sub_category_slug_c3e5d3d3_like on shop_subcategory  (cost=0.28..8.29 rows=1 width=8) (actual time=0.057..0.064 rows=1 loops=1)
+               Index Cond: ((slug)::text = '0eee36585928ed4c23f0e87'::text)
+         ->  Bitmap Heap Scan on shop_item  (cost=51.46..12895.79 rows=4004 width=101) (actual time=5.446..1451.366 rows=4050 loops=1)
+               Recheck Cond: (subcategory_id = shop_subcategory.id)
+               Heap Blocks: exact=3950
+               ->  Bitmap Index Scan on item_sub_category_id_08816099  (cost=0.00..50.46 rows=4004 width=0) (actual time=4.078..4.079 rows=4050 loops=1)
+                     Index Cond: (subcategory_id = shop_subcategory.id)
+ Planning Time: 7.684 ms
+ Execution Time: 1486.016 ms
+(13 rows)
+
+AFTER (CREATE INDEX item_price_idx ON shop_item(price))
+
+QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=13183.44..13193.44 rows=4000 width=101) (actual time=13.344..13.701 rows=4050 loops=1)
+   Sort Key: shop_item.price, shop_item.title
+   Sort Method: quicksort  Memory: 666kB
+   ->  Nested Loop  (cost=51.74..12944.12 rows=4000 width=101) (actual time=2.167..9.848 rows=4050 loops=1)
+         ->  Index Scan using sub_category_slug_c3e5d3d3_like on shop_subcategory  (cost=0.28..8.29 rows=1 width=8) (actual time=0.011..0.016 rows=1 loops=1)
+               Index Cond: ((slug)::text = '0eee36585928ed4c23f0e87'::text)
+         ->  Bitmap Heap Scan on shop_item  (cost=51.46..12895.79 rows=4004 width=101) (actual time=2.141..9.077 rows=4050 loops=1)
+               Recheck Cond: (subcategory_id = shop_subcategory.id)
+               Heap Blocks: exact=3950
+               ->  Bitmap Index Scan on item_sub_category_id_08816099  (cost=0.00..50.46 rows=4004 width=0) (actual time=1.421..1.422 rows=4050 loops=1)
+                     Index Cond: (subcategory_id = shop_subcategory.id)
+ Planning Time: 1.821 ms
+ Execution Time: 13.937 ms
