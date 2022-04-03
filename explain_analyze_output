@@ -41,3 +41,84 @@ QUERY PLAN
                      Index Cond: (subcategory_id = shop_subcategory.id)
  Planning Time: 1.821 ms
  Execution Time: 13.937 ms
+
+
+
+ QUERY:
+ WITH WorstSellingItemIdCTE AS (
+    SELECT shop_orderitem.item_id AS id, SUM(shop_orderitem.quantity * shop_item.price) AS buy_profit
+    FROM shop_orderitem
+        INNER JOIN shop_item ON shop_orderitem.item_id = shop_item.id
+    WHERE shop_orderitem.order_id IN (
+        SELECT shop_order.id
+        FROM shop_order
+        WHERE ordered = true
+    )
+    GROUP BY 1
+    ORDER BY 2
+    LIMIT 1
+)
+SELECT *
+FROM shop_item
+WHERE shop_item.id = (
+    SELECT id FROM WorstSellingItemIdCTE
+)
+
+
+BEFORE:
+
+QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using item_pkey on shop_item  (cost=4393278.02..4393286.04 rows=1 width=101) (actual time=144824.610..146468.489 rows=1 loops=1)
+   Index Cond: (id = $1)
+   InitPlan 1 (returns $1)
+     ->  Subquery Scan on worstsellingitemidcte  (cost=4393277.58..4393277.59 rows=1 width=8) (actual time=144815.092..146458.967 rows=1 loops=1)
+           ->  Limit  (cost=4393277.58..4393277.58 rows=1 width=16) (actual time=144815.090..146458.962 rows=1 loops=1)
+                 ->  Sort  (cost=4393277.58..4402394.24 rows=3646663 width=16) (actual time=144815.087..146458.958 rows=1 loops=1)
+                       Sort Key: (sum((shop_orderitem.quantity * shop_item_1.price)))
+                       Sort Method: top-N heapsort  Memory: 25kB
+                       ->  Finalize HashAggregate  (cost=4267353.75..4375044.26 rows=3646663 width=16) (actual time=138219.997..145460.886 rows=3999980 loops=1)
+                             Group Key: shop_orderitem.item_id
+                             Planned Partitions: 128  Batches: 641  Memory Usage: 4153kB  Disk Usage: 253112kB
+                             ->  Gather  (cost=2830875.82..3800125.05 rows=7293326 width=16) (actual time=119326.109..134790.620 rows=4152673 loops=1)
+                                   Workers Planned: 2
+                                   Workers Launched: 2
+                                   ->  Partial HashAggregate  (cost=2829875.82..3069792.45 rows=3646663 width=16) (actual time=119243.947..131866.383 rows=1384224 loops=3)
+                                         Group Key: shop_orderitem.item_id
+                                         Planned Partitions: 128  Batches: 129  Memory Usage: 4113kB  Disk Usage: 646496kB
+                                         Worker 0:  Batches: 129  Memory Usage: 4113kB  Disk Usage: 646520kB
+                                         Worker 1:  Batches: 129  Memory Usage: 4113kB  Disk Usage: 646464kB
+                                         ->  Parallel Hash Join  (cost=293937.00..1443160.62 rows=20833280 width=16) (actual time=73315.349..96212.516 rows=16666625 loops=3)
+                                               Hash Cond: (shop_orderitem.item_id = shop_item_1.id)
+                                               ->  Parallel Hash Join  (cost=179332.00..1062279.20 rows=20833280 width=12) (actual time=30080.609..58348.862 rows=16666625 loops=3)
+                                                     Hash Cond: (shop_orderitem.order_id = shop_order.id)
+                                                     ->  Parallel Seq Scan on shop_orderitem  (cost=0.00..575980.80 rows=20833280 width=20) (actual time=3.521..14510.959 rows=16666625 loops=3)
+                                                     ->  Parallel Hash  (cost=145151.33..145151.33 rows=2083333 width=8) (actual time=2907.545..2907.547 rows=1666667 loops=3)
+                                                           Buckets: 131072  Batches: 128  Memory Usage: 2592kB
+                                                           ->  Parallel Seq Scan on shop_order  (cost=0.00..145151.33 rows=2083333 width=8) (actual time=1.654..2000.976 rows=1666667 loops=3)
+                                                                 Filter: ordered
+                                               ->  Parallel Hash  (cost=85632.67..85632.67 rows=1666667 width=12) (actual time=1374.112..1374.113 rows=1333333 loops=3)
+                                                     Buckets: 131072  Batches: 64  Memory Usage: 4032kB
+                                                     ->  Parallel Seq Scan on shop_item shop_item_1  (cost=0.00..85632.67 rows=1666667 width=12) (actual time=0.627..778.381 rows=1333333 loops=3)
+ Planning Time: 3.302 ms
+ Execution Time: 146908.046 ms
+
+
+ AFTER(Using materialized view)
+ QUERY PLAN
+ --------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Index Scan using item_pkey on shop_item  (cost=1150.10..1158.11 rows=1 width=101) (actual time=1.132..1.135 rows=1 loops=1)
+    Index Cond: (id = $1)
+    InitPlan 1 (returns $1)
+      ->  Limit  (cost=0.43..1149.67 rows=1 width=8) (actual time=1.084..1.085 rows=1 loops=1)
+            ->  Nested Loop  (cost=0.43..37925.21 rows=33 width=8) (actual time=1.082..1.084 rows=1 loops=1)
+                  ->  Seq Scan on shop_company  (cost=0.00..4.88 rows=1 width=8) (actual time=0.049..0.050 rows=1 loops=1)
+                        Filter: (id = 1)
+                  ->  Nested Loop  (cost=0.43..37920.00 rows=33 width=16) (actual time=1.030..1.031 rows=1 loops=1)
+                        ->  Seq Scan on worst_selling_item_view  (cost=0.00..78.00 rows=5000 width=8) (actual time=0.022..0.039 rows=144 loops=1)
+                        ->  Index Scan using item_pkey on shop_item shop_item_1  (cost=0.43..7.57 rows=1 width=16) (actual time=0.006..0.006 rows=0 loops=144)
+                              Index Cond: (id = worst_selling_item_view.id)
+                              Filter: (company_id = 1)
+                              Rows Removed by Filter: 1
+  Planning Time: 0.927 ms
+  Execution Time: 1.269 ms

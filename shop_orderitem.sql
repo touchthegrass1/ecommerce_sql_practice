@@ -29,4 +29,4 @@ DELETE FROM shop_orderitem WHERE (shop_orderitem.item_id, shop_orderitem.order_i
     HAVING COUNT(*) > 1
 );
 
-CREATE UNIQUE INDEX order_item_item_id_order_id ON shop_orderitem (item_id, order_id);
+CREATE UNIQUE INDEX order_item_item_id_order_id_idx ON shop_orderitem (item_id, order_id);
