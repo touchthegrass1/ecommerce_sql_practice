@@ -77,21 +77,21 @@ RETURNING order_id;
 WITH ItemCTE AS (
     SELECT shop_item.id AS item_id
     FROM shop_item
-    WHERE slug = %s
+    WHERE slug = '8b5a26ed90ee927c26ba8cb'
 )
 INSERT INTO shop_orderitem(quantity, item_id, order_id)
-SELECT 1, ItemCTE.item_id, %s
+SELECT 1, ItemCTE.item_id, 1
 FROM ItemCTE
 ON CONFLICT(item_id, order_id) DO NOTHING;
 
 WITH ItemCTE AS (
     SELECT shop_item.id AS item_id
     FROM shop_item
-    WHERE slug = %s
+    WHERE slug = '8b5a26ed90ee927c26ba8cb'
 ), OrderCTE AS (
     SELECT shop_order.id AS order_id
     FROM shop_order
-    WHERE shop_order.ordered = FALSE AND shop_order.shipped = FALSE AND shop_order.user_id = %s
+    WHERE shop_order.ordered = FALSE AND shop_order.shipped = FALSE AND shop_order.user_id = 5493045
 )
 DELETE FROM shop_orderitem
 WHERE item_id = (
